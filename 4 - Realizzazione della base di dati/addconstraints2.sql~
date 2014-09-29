@@ -1,0 +1,432 @@
+DROP PROCEDURE IF EXISTS eccezione;
+DELIMITER |
+CREATE PROCEDURE eccezione()
+UPDATE violazione_vincolo SET X=1;
+DELIMITER ;
+
+
+-------------------------------------------------------------------
+
+------ VINCOLO DI INCLUSIONE SALACOLLEZIONE IN COLLOCAZIONE
+
+------ VINCOLO SU NUMOGGETTI IN SALACOLLEZIONE
+
+-------------------------------------------------------------------
+
+
+-- Funzione che calcola il numero di oggetti conservati in una sala
+DROP FUNCTION IF EXISTS num_oggetti_sala;
+DELIMITER |
+CREATE FUNCTION num_oggetti_sala(numero INTEGER, piano INTEGER) RETURNS INTEGER
+BEGIN
+DECLARE num_ogg INTEGER;
+SELECT count (*)
+INTO num_ogg
+FROM Collocazione
+WHERE numSala=numero AND numPiano=piano;
+RETURN num_ogg;
+END
+|
+DELIMITER ;
+
+
+-- Funzione che verifica il vincolo di inclusione SalaCollezione - Collocazione
+DROP FUNCTION IF EXISTS incl_sala;
+DELIMITER |
+CREATE FUNCTION incl_sala(numero INTEGER, piano INTEGER) RETURNS BOOL
+BEGIN
+DECLARE num_ogg INTEGER;
+SET num_ogg = num_oggetti_sala(numero, piano);
+IF num_ogg > 0 THEN
+	RETURN TRUE;
+ELSE
+	RETURN FALSE;
+END IF
+END
+|
+DELIMITER ;
+
+
+
+-- Inserimento in SalaCollezione
+DROP TRIGGER IF EXISTS sala_ins;
+DELIMITER |
+CREATE TRIGGER sala_ins
+BEFORE INSERT ON SalaCollezione
+FOR EACH ROW
+BEGIN
+IF incl_sala(NEW.numero, NEW.sala)=FALSE OR NEW.numOggetti <> 0 THEN
+	CALL eccezione();
+END IF
+END
+|
+DELIMITER ;
+
+
+-- Aggiornamento in SalaCollezione
+DROP TRIGGER IF EXISTS sala_mod;
+DELIMITER |
+CREATE TRIGGER sala_mod
+BEFORE UPDATE ON SalaCollezione
+FOR EACH ROW
+BEGIN
+IF OLD.numOggetti <> NEW.numOggetti THEN
+	CALL eccezione();
+ELSEIF OLD.numero <> NEW.numero OR OLD.piano <> NEW.piano THEN
+	IF incl_sala(NEW.numero, NEW.sala)=FALSE OR OLD.numOggetti <> 0 THEN
+		CALL eccezione();
+	END IF
+END IF
+END
+|
+DELIMITER ;
+
+
+-- Cancellazione in SalaCollezione
+DROP TRIGGER IF EXISTS sala_canc;
+DELIMITER |
+CREATE TRIGGER sala_canc
+BEFORE DELETE ON SalaCollezione
+FOR EACH ROW
+BEGIN
+IF OLD.numOggetti <> 0 THEN
+	CALL eccezione();
+ENDIF
+END
+|
+DELIMITER ;
+
+
+
+-- Inserimento in Collocazione
+DROP TRIGGER IF EXISTS coll_ins;
+DELIMITER |
+CREATE TRIGGER coll_ins
+BEFORE INSERT ON Collocazione
+FOR EACH ROW
+BEGIN
+UPDATE SalaCollocazione
+SET numOggetti = numOggetti + 1
+WHERE numero = NEW.numSala AND piano = NEW.pianoSala;
+END
+|
+DELIMITER ;
+
+
+
+-- Aggiornamento in Collocazione
+DROP TRIGGER IF EXISTS coll_mod;
+DELIMITER |
+CREATE TRIGGER coll_mod
+BEFORE UPDATE ON Collocazione
+FOR EACH ROW
+BEGIN
+IF OLD.numSala <> NEW.numSala OR OLD.numPiano <> NEW.numPiano THEN
+	DECLARE num_ogg INTEGER;
+	SET num_ogg = num_oggetti_sala(OLD.numero, OLD.sala);
+	IF (num_ogg < 2) THEN
+		CALL eccezione();
+	ELSE
+		UPDATE SalaCollezione
+		SET numOggetti = numOggetti - 1
+		WHERE numero = OLD.numSala AND piano = OLD.numPiano;
+		UPDATE SalaCollezione
+		SET numOggetti = numOggetti + 1
+		WHERE numero = NEW.numSala AND piano = NEW.numPiano;
+	END IF
+END IF
+END
+|
+DELIMITER ;
+
+
+-- Cancellazione in Collocazione
+DROP TRIGGER IF EXISTS coll_canc;
+DELIMITER |
+CREATE TRIGGER coll_can
+BEFORE DELETE ON Collocazione
+FOR EACH ROW
+BEGIN
+DECLARE num_ogg INTEGER;
+SET num_ogg = num_oggetti_sala(OLD.numero, OLD.sala);
+IF (num_ogg < 2) THEN
+	CALL eccezione();
+ELSE
+	UPDATE SalaCollezione
+	SET numOggetti = numOggetti - 1
+	WHERE numero = OLD.numSala AND piano = OLD.numPiano;
+END IF
+END
+|
+DELIMITER ;
+
+
+
+-------------------------------------------------------------------
+
+------ VINCOLO DI INCLUSIONE SEZIONE IN APPARTENENZA
+
+------ VINCOLO SU NUMSALE IN SEZIONE
+
+-------------------------------------------------------------------
+
+
+-- Funzione che calcola il numero di sale contenute in una sezione
+DROP FUNCTION IF EXISTS num_sale_sezione;
+DELIMITER |
+CREATE FUNCTION num_sale_sezione(nome VARCHAR(64)) RETURNS INTEGER
+BEGIN
+DECLARE num_sale INTEGER;
+SELECT count (*)
+INTO num_sale
+FROM Appartenenza
+WHERE sezione=nome;
+RETURN num_sale;
+END
+|
+DELIMITER ;
+
+
+-- Funzione che verifica il vincolo di inclusione Sezione in Appartenenza
+DROP FUNCTION IF EXISTS incl_sezione;
+DELIMITER |
+CREATE FUNCTION incl_sezione(nome VARCHAR(64)) RETURNS BOOL
+BEGIN
+DECLARE num_sale INTEGER;
+SET num_sale = num_sale_sezione(nome);
+IF num_sale > 0 THEN
+	RETURN TRUE;
+ELSE 
+	RETURN FALSE;
+END IF
+END
+|
+DELIMITER ;
+
+
+
+-- Inserimento in Sezione
+DROP TRIGGER IF EXISTS sezione_ins;
+DELIMITER |
+CREATE TRIGGER sezione_ins
+BEFORE INSERT ON Sezione
+FOR EACH ROW
+BEGIN
+IF incl_sezione(NEW.nome)=FALSE OR NEW.numSale <> 0 THEN
+	CALL eccezione();
+END IF
+END
+|
+DELIMITER ;
+
+
+-- Aggiornamento in Sezione
+DROP TRIGGER IF EXISTS sezione_mod;
+DELIMITER |
+CREATE TRIGGER sezione_mod
+BEFORE UPDATE ON Sezione
+FOR EACH ROW
+BEGIN
+IF OLD.numSale <> NEW.numSale THEN
+	CALL eccezione();
+ELSEIF OLD.nome <> NEW.nome THEN
+	IF incl_sezione(NEW.nome)=FALSE OR OLD.numSale <> 0 THEN
+		CALL eccezione();
+	END IF
+END IF
+END
+|
+DELIMITER ;
+
+
+-- Cancellazione in Sezione
+DROP TRIGGER IF EXISTS sezione_canc;
+DELIMITER |
+CREATE TRIGGER sezione_canc
+BEFORE DELETE ON Sezione
+FOR EACH ROW
+BEGIN
+IF OLD.numSale <> 0 THEN
+	CALL eccezione();
+ENDIF
+END
+|
+DELIMITER ;
+
+
+
+-- Inserimento in Appartenenza
+DROP TRIGGER IF EXISTS app_ins;
+DELIMITER |
+CREATE TRIGGER app_ins
+BEFORE INSERT ON Appartenenza
+FOR EACH ROW
+BEGIN
+UPDATE Sezione
+SET numSale = numSale + 1
+WHERE nome = NEW.sezione;
+END
+|
+DELIMITER ;
+
+
+
+-- Aggiornamento in Appartenenza
+DROP TRIGGER IF EXISTS app_mod;
+DELIMITER |
+CREATE TRIGGER app_mod
+BEFORE UPDATE ON Appartenenza
+FOR EACH ROW
+BEGIN
+IF OLD.sezione <> NEW.sezione THEN
+	DECLARE num_sale INTEGER;
+	SET num_sale = num_sale_sezione(OLD.sezione);
+	IF (num_sale < 2) THEN
+		CALL eccezione();
+	ELSE
+		UPDATE Sezione
+		SET numSale = numSale - 1
+		WHERE nome = OLD.sezione;
+		UPDATE Sezione
+		SET numSale = numSale + 1
+		WHERE nome = NEW.sezione;
+	END IF
+END IF
+END
+|
+DELIMITER ;
+
+
+-- Cancellazione in Appartenenza
+DROP TRIGGER IF EXISTS app_canc;
+DELIMITER |
+CREATE TRIGGER app_can
+BEFORE DELETE ON Appartenenza
+FOR EACH ROW
+BEGIN
+DECLARE num_sale INTEGER;
+SET num_sale = num_sale_sezione(OLD.sezione);
+IF (num_ogg < 2) THEN
+	CALL eccezione();
+ELSE
+	UPDATE Sezione
+	SET numSale = numsale - 1
+	WHERE nome = OLD.sezione;
+END IF
+END IF
+END
+|
+DELIMITER ;
+
+
+
+-------------------------------------------------------------------
+
+------ VINCOLO DI INCLUSIONE STRUTTURA IN TELEFONOSTRUTTURA
+
+-------------------------------------------------------------------
+
+
+
+-- Funzione che calcola i numeri di telefono di una struttura
+DROP FUNCTION IF EXISTS num_telefoni_struttura;
+DELIMITER |
+CREATE FUNCTION num_telefoni_struttura(codice VARCHAR(16)) RETURNS INTEGER
+BEGIN
+DECLARE num_tel INTEGER;
+SELECT count (*)
+INTO num_tel
+FROM TelefonoStruttura
+WHERE codiceStruttura=codice;
+RETURN num_tel;
+END
+|
+DELIMITER ;
+
+
+-- Funzione che verifica il vincolo di inclusione Struttura - TelefonoStruttura
+DROP FUNCTION IF EXISTS incl_struttura;
+DELIMITER |
+CREATE FUNCTION incl_struttura(codice VARCHAR(16)) RETURNS BOOL
+BEGIN
+DECLARE num_tel INTEGER;
+SET num_tel = num_telefoni_struttra(codice);
+IF num_tel > 0 THEN
+	RETURN TRUE;
+ELSE 
+	RETURN FALSE;
+END IF
+END
+|
+DELIMITER ;
+
+
+
+-- Inserimenti in Struttura
+DROP TRIGGER IF EXISTS struttura_ins;
+DELIMITER |
+CREATE TRIGGER struttura_ins
+BEFORE INSERT ON Struttura
+FOR EACH ROW
+BEGIN
+IF incl_struttura(NEW.codice)=FALSE THEN
+	CALL eccezione();
+END IF
+END
+|
+DELIMITER ;
+
+
+-- Modifiche in Struttura
+DROP TRIGGER IF EXISTS struttura_mod;
+DELIMITER |
+CREATE TRIGGER struttura_mod
+BEFORE UPDATE ON Struttura
+FOR EACH ROW
+BEGIN
+IF OLD.codice <> NEW.codice THEN
+	IF incl_struttura(NEW.codice)=FALSE THEN
+		CALL eccezione();
+	END IF
+END IF
+END
+|
+DELIMITER ;
+
+
+
+-- Modifiche in TelefonoStruttura
+DROP TRIGGER IF EXISTS tel_mod;
+DELIMITER |
+CREATE TRIGGER tel_mod
+BEFORE UPDATE ON TelefonoStruttura
+FOR EACH ROW
+BEGIN
+IF OLD.codiceStruttura <> NEW.codiceStruttura THEN
+	DECLARE num_tel INTEGER;
+	SET num_tel = num_telefoni_struttura(OLD.codice);
+	IF (num_tel < 2) THEN
+		CALL eccezione();
+	END IF
+END IF
+END
+|
+DELIMITER ;
+
+
+-- Cancellazioni in TelefonoStruttura
+DROP TRIGGER IF EXISTS tel_canc;
+DELIMITER |
+CREATE TRIGGER tel_can
+BEFORE DELETE ON TelefonoStruttura
+FOR EACH ROW
+BEGIN
+DECLARE num_tel INTEGER;
+SET num_tel = num_telefono_struttura(OLD.codice);
+IF (num_tel < 2) THEN
+	CALL eccezione();
+END IF
+END
+|
+DELIMITER ;
+

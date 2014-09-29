@@ -1,0 +1,3 @@
+CREATE USER utente IDENTIFIED BY 'visitatore';
+GRANT SELECT ON laureadb.* TO 'visitatore'@'%' IDENTIFIED BY 'visitatore';
+FLUSH PRIVILEGES;

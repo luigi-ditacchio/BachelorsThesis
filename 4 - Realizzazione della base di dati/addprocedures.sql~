@@ -1,0 +1,157 @@
+-- Procedura per inserire una Sezione
+DROP PROCEDURE IF EXISTS inserisci_sezione;
+DELIMITER |
+CREATE PROCEDURE inserisci_sezione(nome VARCHAR(64), descrizione VARCHAR(523),
+			numSala INTEGER, pianoSala INTEGER)
+BEGIN
+
+	DECLARE EXIT HANDLER FOR SQLEXCEPTION
+	BEGIN
+		ROLLBACK;
+		SET foreign_key_checks = 1;
+		SET @SEZ_INS = NULL;
+		SET AUTOCOMMIT = 1;
+		SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+	END
+	
+	SET AUTOCOMMIT = 0;
+	SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+	SET foreign_key_checks = 0;
+	SET @SEZ_INS = 1;
+	
+	INSERT INTO Sezione VALUES (nome, descrizione, 0);
+	INSERT INTO Appartenenza VALUES (numSala, pianoSala);
+	
+	SET foreign_key_checks = 1;
+	SET @SEZ_INS = NULL;
+	
+	COMMIT;
+	
+	SET AUTOCOMMIT = 1;
+	SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+
+END
+|
+DELIMITER ;
+
+
+
+
+
+-- Procedura per inserire una fotografia
+DROP PROCEDURE IF EXISTS inserisci_fotografia;
+DELIMITER |
+CREATE PROCEDURE inserisci_fotografia(codice CHAR(16), nome VARCHAR(64),
+		anno_periodo VARCHAR(64), lunghezza INTEGER, larghezza INTEGER,
+		profondita INTEGER, descrizione VARCHAR(128), tipo ENUM('B/N', 'COLORI'))
+BEGIN
+
+	DECLARE EXIT HANDLER FOR SQLEXCEPTION
+	BEGIN
+		ROLLBACK;
+		SET foreign_key_checks = 1;
+		SET @OGG_INS = NULL;
+		SET AUTOCOMMIT = 1;
+		SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+	END
+	
+	SET AUTOCOMMIT = 0;
+	SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+	SET foreign_key_checks = 0;
+	SET @OGG_INS = 1;
+	
+	INSERT INTO OggettoGenerali VALUES (codice, nome, anno_periodo, lunghezza, larghezza, profondita);
+	INSERT INTO OggettoParticolari VALUES (codice, descrizione);
+	INSERT INTO Fotografia VALUES (codice, tipo);
+	
+	SET foreign_key_checks = 1;
+	SET @OGG_INS = NULL;
+	
+	COMMIT;
+	
+	SET AUTOCOMMIT = 1;
+	SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+
+END
+|
+DELIMITER ;
+
+
+
+
+-- Procedura per inserire un quadro
+DROP PROCEDURE IF EXISTS inserisci_quadro;
+DELIMITER |
+CREATE PROCEDURE inserisci_fotografia(codice CHAR(16), nome VARCHAR(64),
+		anno_periodo VARCHAR(64), lunghezza INTEGER, larghezza INTEGER,
+		profondita INTEGER, descrizione VARCHAR(128), tipo ENUM('B/N', 'COLORI'))
+BEGIN
+
+	DECLARE EXIT HANDLER FOR SQLEXCEPTION
+	BEGIN
+		ROLLBACK;
+		SET foreign_key_checks = 1;
+		SET @OGG_INS = NULL;
+		SET AUTOCOMMIT = 1;
+		SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+	END
+	
+	SET AUTOCOMMIT = 0;
+	SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+	SET foreign_key_checks = 0;
+	SET @OGG_INS = 1;
+	
+	INSERT INTO OggettoGenerali VALUES (codice, nome, anno_periodo, lunghezza, larghezza, profondita);
+	INSERT INTO OggettoParticolari VALUES (codice, descrizione);
+	INSERT INTO Fotografia VALUES (codice, tipo);
+	
+	SET foreign_key_checks = 1;
+	SET @OGG_INS = NULL;
+	
+	COMMIT;
+	
+	SET AUTOCOMMIT = 1;
+	SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+
+END
+|
+DELIMITER ;
+
+
+
+
+
+DROP PROCEDURE IF EXISTS inserisci_artista;
+DELIMITER |
+CREATE PROCEDURE inserisci_artista(codice CHAR(16), nome VARCHAR(32),
+		cognome VARCHAR(32), dataNascita DATE, dataMorte DATE,
+		luogoNascita VARCHAR(64), luogoMorte VARCHAR(64),
+		vita VARCHAR(1024), stile VARCHAR(1024))
+BEGIN
+
+	DECLARE EXIT HANDLER FOR SQLEXCEPTION
+	BEGIN
+		ROLLBACK;
+		SET foreign_key_checks = 1;
+		SET AUTOCOMMIT = 1;
+		SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+	END
+	
+	SET AUTOCOMMIT = 0;
+	SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+	SET foreign_key_checks = 0;
+	
+	INSERT INTO ArtistaGenerali(codice, nome, cognome, dataNascita, dataMorte)
+			VALUES (codice, nome, cognome, dataNascita, dataMorte);
+	INSERT INTO ArtistaParticolari VALUES (codice, luogoNascita, luogoMorte, vita, stile);
+	
+	SET foreign_key_checks = 1;
+	
+	COMMIT;
+	
+	SET AUTOCOMMIT = 1;
+	SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+
+END
+|
+DELIMITER ;
